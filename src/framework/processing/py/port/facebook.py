@@ -105,7 +105,7 @@ STATUS_CODES = [
 
 def validate(zfile: Path) -> ValidateInput:
     """
-    Validates the input of an Instagram zipfile
+    Validates the input of an Facebook zipfile
     """
 
     validation = ValidateInput(STATUS_CODES, DDP_CATEGORIES)
