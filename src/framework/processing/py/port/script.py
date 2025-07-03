@@ -8,14 +8,9 @@ import pandas as pd
 
 import port.api.props as props
 import port.helpers as helpers
-import port.youtube as youtube
 import port.validate as validate
-import port.tiktok as tiktok
-import port.twitter as twitter
 import port.facebook as facebook
-import port.chrome as chrome
-import port.instagram as instagram
-import port.linkedin as linkedin
+
 
 from port.api.commands import (CommandSystemDonate, CommandUIRender, CommandSystemExit)
 
@@ -35,7 +30,7 @@ def process(session_id):
     LOGGER.info("Starting the donation flow")
     yield donate_logs(f"{session_id}-tracking")
 
-    platforms = [ ("LinkedIn", extract_linkedin, linkedin.validate), ("Instagram", extract_instagram, instagram.validate), ("Chrome", extract_chrome, chrome.validate), ("Facebook", extract_facebook, facebook.validate), ("Youtube", extract_youtube, youtube.validate), ("TikTok", extract_tiktok, tiktok.validate), ("Twitter", extract_twitter, twitter.validate), ]
+    platforms = [ ("Facebook", extract_facebook, facebook.validate) ]
 
     #platforms = [ ("LinkedIn", extract_linkedin, linkedin.validate), ]
     #platforms = [ ("Instagram", extract_instagram, instagram.validate), ]
