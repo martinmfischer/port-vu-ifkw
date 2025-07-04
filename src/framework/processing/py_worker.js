@@ -108,7 +108,12 @@ function installPortPackage() {
   return self.pyodide.runPythonAsync(`
     import micropip
     await micropip.install("../../port-0.0.0-py3-none-any.whl", deps=False)
+    await micropip.install("plotly==5.20.0")
+    await micropip.install("seaborn==0.13.2")
+    import seaborn
+    import plotly
     import port
+    
   `)
 }
 

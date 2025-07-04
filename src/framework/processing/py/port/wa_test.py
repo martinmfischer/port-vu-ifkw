@@ -11,8 +11,10 @@ import re
 
 import pandas as pd
 
-from whatstk import WhatsAppChat
-import whatstk
+import port.whatstk as whatstk
+from port.whatstk import WhatsAppChat
+
+
 
 
 import port.unzipddp as unzipddp
@@ -24,8 +26,9 @@ from port.validate import (
     Language,
     DDPFiletype,
 )
-import whatstk.whatsapp
-import whatstk.whatsapp.parser
+
+
+
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,18 @@ from typing import Any
 import logging
 import zipfile
 import re
+import tempfile
 
 import pandas as pd
+
+
+import os
+
+
+import port.whatstk as whatstk
+from port.whatstk import WhatsAppChat
+from port.whatstk import df_from_whatsapp
+
 
 import port.unzipddp as unzipddp
 import port.helpers as helpers
@@ -29,9 +39,16 @@ DDP_CATEGORIES = [
         ddp_filetype=DDPFiletype.TXT,
         language=Language.EN,
         known_files=[
-            # WhatsApp exports are usually named like this
+            # English WhatsApp exports
             "WhatsApp Chat with",
             "WhatsApp Chat.txt",
+            "WhatsApp-Chat with",
+            "WhatsApp-Chat.txt",
+            # German WhatsApp exports
+            "WhatsApp Chat mit",
+            "WhatsApp-Chat mit",
+            "WhatsApp Chat.txt",
+            "WhatsApp-Chat.txt",
         ],
     )
 ]
@@ -42,31 +59,71 @@ STATUS_CODES = [
     StatusCode(id=2, description="Bad zipfile", message=""),
 ]
 
+def is_known_file(filename: str) -> bool:
+    """
+    Checks if the filename matches any known WhatsApp export patterns.
+    """
+    normalized_filename = filename.lower().strip()
+    for known_file in DDP_CATEGORIES[0].known_files:
+        logger.debug(f"Comparing filename {filename} to known file: {known_file}")
+        if known_file.lower().strip() in normalized_filename:
+            logger.debug("Found known WhatsApp file: %s", filename)
+            return True
+    return False
 
 def validate(zfile: Path) -> ValidateInput:
     """
     Validates the input of a WhatsApp zipfile
     """
+    logger.debug("Starting validation for zipfile: %s", zfile)
     validation = ValidateInput(STATUS_CODES, DDP_CATEGORIES)
+    found = False
 
     try:
         paths = []
         with zipfile.ZipFile(zfile, "r") as zf:
+            logger.debug("Opened zipfile: %s", zfile)
             for f in zf.namelist():
+                logger.debug("Inspecting file in zip: %s", f)
                 p = Path(f)
-                if p.suffix == ".txt" and "WhatsApp Chat" in p.name:
-                    logger.debug("Found: %s in zip", p.name)
+                
+                if p.suffix == ".txt" and is_known_file(f):
+                    logger.debug("Found candidate WhatsApp txt file: %s", p.name)
                     paths.append(p.name)
+                    # Check content of the txt file using whatstk
+                    with zf.open(f) as chat_file:
+                        try:
+                            logger.debug("Attempting to parse file with whatstk: %s", p.name)
+                            
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmpfile:
+                                tmpfile.write(chat_file.read())
+                                tmpfile.flush()
+                                df = df_from_whatsapp(
+                                    tmpfile.name,
+                                    auto_header=False,
+                                    hformat="%d.%m.%y, %H:%M - %name:"
+                                )
+                            logger.debug("Parsing result DataFrame shape: %s", df.shape)
+                            if not df.empty:
+                                logger.debug("Valid WhatsApp chatlog found: %s", p.name)
+                                validation.set_status_code(0)
+                                found = True
+                                break
+                            else:
+                                logger.debug("Parsed DataFrame is empty for file: %s", p.name)
+                        except Exception as e:
+                            logger.debug("whatstk failed to parse file %s: %s", p.name, e)
+            if not found:
+                logger.debug("No valid WhatsApp chatlog found in zipfile: %s", zfile)
+                validation.set_status_code(1)
 
-        validation.infer_ddp_category(paths)
-        if validation.ddp_category.id is None:
-            validation.set_status_code(1)
-        else:
-            validation.set_status_code(0)
-
-    except zipfile.BadZipFile:
+    except zipfile.BadZipFile as e:
+        logger.debug("BadZipFile exception for file %s: %s", zfile, e)
         validation.set_status_code(2)
+    except Exception as e:
+        logger.debug("Unexpected exception during validation: %s", e)
 
+    logger.debug("Validation result for %s: status_code=%s", zfile, validation.status_code)
     return validation
 
 
@@ -76,78 +133,34 @@ def chatlog_to_df(whatsapp_zip: str, chat_filename: str = None) -> pd.DataFrame:
     If chat_filename is None, tries to find the first .txt file with 'WhatsApp Chat' in the name.
     """
     # Find the chatlog file
-    if chat_filename is None:
-        with zipfile.ZipFile(whatsapp_zip, "r") as zf:
-            for f in zf.namelist():
-                if f.endswith(".txt") and "WhatsApp Chat" in f:
-                    chat_filename = f
-                    break
-    if chat_filename is None:
-        logger.error("No WhatsApp chatlog found in zip")
-        return pd.DataFrame()
+    chat_filename = None
+    out = pd.DataFrame()
 
-    b = unzipddp.extract_file_from_zip(whatsapp_zip, chat_filename)
-    chat_text = b.decode("utf-8")
-
-    # Use a helper to parse the chatlog (see script.py)
-    messages = helpers.whatsapp_parse_chatlog(chat_text)
-
-    # messages: list of dicts with keys: date, time, sender, message
-    df = pd.DataFrame(messages)
-    return df
+    with zipfile.ZipFile(whatsapp_zip, "r") as zf:
+        for f in zf.namelist():
+            if f.endswith(".txt") and is_known_file(f):
+                chat_filename = f
+                break
 
 
-# The following functions are not directly relevant for WhatsApp, but kept for compatibility.
-# They can be adapted or left as stubs.
 
-def group_interactions_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
+        if chat_filename is None:
+            logger.error("No WhatsApp chatlog found in zip")
+            return pd.DataFrame()
 
-def comments_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
 
-def likes_and_reactions_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def your_badges_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def find_items(d: dict[Any, Any], key_to_match: str) -> str:
-    # Not needed for WhatsApp, but kept for compatibility
-    return ""
-
-def your_posts_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def your_posts_check_ins_photos_and_videos_1_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def your_search_history_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def recently_viewed_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def recently_visited_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def feed_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def controls_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
-
-def group_posts_and_comments_to_df(*args, **kwargs) -> pd.DataFrame:
-    logger.info("Not applicable for WhatsApp exports.")
-    return pd.DataFrame()
+        with zf.open(chat_filename) as chat_file:
+            try:
+            # Write the chat_file to a temporary file because whatstk expects a file path
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmpfile:
+                    tmpfile.write(chat_file.read())
+                    tmpfile.flush()
+                    out = df_from_whatsapp(
+                    tmpfile.name,
+                    auto_header=False,
+                    hformat="%d.%m.%y, %H:%M - %name:"
+                    )
+                logger.debug("Parsed DataFrame: %s", out.head())
+            except Exception as e:
+                logger.debug("whatstk failed to parse file %s: %s", chat_filename, e)
+    return out
