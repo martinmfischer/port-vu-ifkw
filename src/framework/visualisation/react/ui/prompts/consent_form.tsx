@@ -83,10 +83,32 @@ export const ConsentForm = (props: Props): JSX.Element => {
   function parseTables(
     tablesData: PropsUIPromptConsentFormTable[]
   ): Array<PropsUITable & TableContext> {
+    
     return tablesData.map((table) => parseTable(table))
   }
 
+/*
+//New stuff
+
+function downloadJson(data: any, filename = "debug_output.json") {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+
+*/
+
+
   function parseTable(tableData: PropsUIPromptConsentFormTable): PropsUITable & TableContext {
+
     const id = tableData.id
     const title = Translator.translate(tableData.title, props.locale)
     const description =

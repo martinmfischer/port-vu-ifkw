@@ -31,7 +31,13 @@ from port.validate import (
     DDPFiletype,
 )
 
+
+FILTER_LINKS: bool = False ## Turns on/off filtering of links in chatlogs
+
+
 logger = logging.getLogger(__name__)
+
+
 
 DDP_CATEGORIES = [
     DDPCategory(
@@ -126,6 +132,77 @@ def validate(zfile: Path) -> ValidateInput:
     logger.debug("Validation result for %s: status_code=%s", zfile, validation.status_code)
     return validation
 
+def anonymize_chatlog(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Anonymizes the chatlog DataFrame by replacing usernames with user_1, user_2, etc.,
+    and removing these names from the message body as well.
+    """
+    if df.empty or 'username' not in df.columns or 'message' not in df.columns:
+        return df
+
+    # Map unique usernames to user_1, user_2, ...
+    unique_users = {name: f"user_{i+1}" for i, name in enumerate(df['username'].unique())}
+    df['username'] = df['username'].map(unique_users)
+
+    
+    # Replace usernames in message body with their anonymized versions
+    def replace_names_in_message(msg):
+        for orig, anon in unique_users.items():
+            # Use word boundaries to avoid partial replacements
+            msg = re.sub(rf'\b{re.escape(str(orig))}\b', anon, msg)
+        return msg
+
+    df['message'] = df['message'].astype(str).apply(replace_names_in_message)
+    
+    return df
+
+
+### THIS DOES NOT WORK YET, IT IS AI SLOP
+
+def filter_to_links(df: pd.DataFrame) -> pd.DataFrame:
+    if( not FILTER_LINKS) or df.empty:
+        return df
+    """
+    Filters the chatlog DataFrame to only include rows that contain links and their context (+- 5 rows)
+    This is useful for extracting URLs shared in the chat.
+    """
+    if df.empty or 'message' not in df.columns:
+        return df
+    # Define a regex pattern to match URLs
+    url_pattern = r'(https?://[^\s]+)'
+    # Filter rows that contain URLs
+    mask = df['message'].str.contains(url_pattern, na=False)
+    filtered_df = df[mask].copy()
+    # For each row with a URL, get the context (5 rows before and after)
+    context_rows = []
+    for index in filtered_df.index:
+        start = max(0, index - 2)
+        end = min(len(df), index + 3)
+        context = df.iloc[start:end]
+        context_rows.append(context)
+    # Concatenate all context rows into a single DataFrame
+    if context_rows:
+        filtered_df = pd.concat(context_rows).drop_duplicates().reset_index(drop=True)
+    else:
+        filtered_df = pd.DataFrame(columns=df.columns)
+
+    return filtered_df
+
+def clean_chatlog(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cleans the chatlog DataFrame by removing rows where all values are NaN.
+    This is useful to ensure that the DataFrame does not contain empty rows.
+    """
+    if df.empty:
+        return df
+    # Drop rows where all values are NaN
+    #logger.debug("Cleaning chatlog DataFrame, initial shape: %s", df.shape)
+    df = df.dropna(how='all')
+    df = df[df["message"].notna() & (df["message"].str.strip() != "<Medien ausgeschlossen>")]    
+    #logger.debug("Shape after removing '<Medien ausgeschlossen>': %s", df.shape)
+
+    return df
+
 
 def chatlog_to_df(whatsapp_zip: str, chat_filename: str = None) -> pd.DataFrame:
     """
@@ -163,4 +240,9 @@ def chatlog_to_df(whatsapp_zip: str, chat_filename: str = None) -> pd.DataFrame:
                 logger.debug("Parsed DataFrame: %s", out.head())
             except Exception as e:
                 logger.debug("whatstk failed to parse file %s: %s", chat_filename, e)
+        out = clean_chatlog(out)
+        out = anonymize_chatlog(out)
+        out = filter_to_links(out)
+        out = out.reset_index(drop=True)
     return out
+

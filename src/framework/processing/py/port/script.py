@@ -58,7 +58,13 @@ def process(session_id):
             yield donate_logs(f"{session_id}-tracking")
 
             # Render the propmt file page
-            promptFile = prompt_file("application/zip, text/plain, application/json", platform_name)
+            # Accept zip, plain text, json, and files without extension (empty string for extension)
+            promptFile = None
+            if platform_name == "WhatsApp":
+                promptFile = prompt_file("", platform_name)
+            else:
+                promptFile = prompt_file("application/zip, text/plain, application/json", platform_name)
+            
             file_result = yield render_donation_page(platform_name, promptFile, progress)
 
             if file_result.__type__ == "PayloadString":
@@ -96,6 +102,7 @@ def process(session_id):
         # Render data on screen
         if table_list is not None:
             LOGGER.info("Prompt consent; %s", platform_name)
+            LOGGER.debug("Table list: %s", table_list)
             yield donate_logs(f"{session_id}-tracking")
 
             # Check if extract something got extracted
@@ -273,37 +280,39 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
 
     # Extract chat messages
     df = whatsapp.chatlog_to_df(whatsapp_zip)
+    LOGGER.debug("Extracted WhatsApp chat messages DataFrame shape in script.py: %s", df.shape)
+    LOGGER.debug("head of extracted messages in script.py: %s", df.head())
+    # Convert all cells to strings:
+    df = df.astype(str)
     if not df.empty:
-        table_title = props.Translatable({"en": "WhatsApp chat messages", "nl": "WhatsApp chatberichten"})
+        table_title = props.Translatable({"en": "WhatsApp chat messages", "nl": "WhatsApp chatberichten", "de": "WhatsApp Chatnachrichten"})
         vis = [
             create_wordcloud(
                 "Meest voorkomende woorden in chats",
                 "Most common words in chats",
-                "Message",
+                "message",
                 tokenize=True
             ),
             create_chart(
                 "bar",
                 "Aantal berichten per contact",
                 "Number of messages per contact",
-                "Contact"
+                "username"
             )
         ]
         table = props.PropsUIPromptConsentFormTable("whatsapp_chats", table_title, df, visualizations=vis)
         tables_to_render.append(table)
 
-    # Optionally, extract media summary if available
-    if hasattr(whatsapp, "media_to_df"):
-        df_media = whatsapp.media_to_df(whatsapp_zip)
-        if not df_media.empty:
-            table_title = props.Translatable({"en": "WhatsApp media summary", "nl": "WhatsApp mediaoverzicht"})
-            table = props.PropsUIPromptConsentFormTable("whatsapp_media", table_title, df_media)
-            tables_to_render.append(table)
-
     return tables_to_render
 
-
-
+"""
+    df = facebook.group_interactions_to_df(facebook_zip)
+    if not df.empty:
+        table_title = props.Translatable({"en": "Facebook group interactions", "nl": "Facebook group interactions"})
+        vis = [create_wordcloud("Groepen met meeste interacties", "Groups with most interactions", "Group name", value_column="Times Interacted")]
+        table =  props.PropsUIPromptConsentFormTable("facebook_group_interactions", table_title, df, visualizations=vis) 
+        tables_to_render.append(table)
+"""
 
 ##########################################
 # Functions provided by Eyra did not change
@@ -314,7 +323,7 @@ def render_end_page():
 
 
 def render_donation_page(platform, body, progress):
-    header = props.PropsUIHeader(props.Translatable({"en": platform, "nl": platform}))
+    header = props.PropsUIHeader(props.Translatable({"en": platform, "nl": platform, "de": platform}))
 
     footer = props.PropsUIFooter(progress)
     page = props.PropsUIPageDonation(platform, header, body, footer)
@@ -325,11 +334,12 @@ def retry_confirmation(platform):
     text = props.Translatable(
         {
             "en": f"Unfortunately, we could not process your {platform} file. If you are sure that you selected the correct file, press Continue. To select a different file, press Try again.",
-            "nl": f"Helaas, kunnen we uw {platform} bestand niet verwerken. Weet u zeker dat u het juiste bestand heeft gekozen? Ga dan verder. Probeer opnieuw als u een ander bestand wilt kiezen."
+            "nl": f"Helaas, kunnen we uw {platform} bestand niet verwerken. Weet u zeker dat u het juiste bestand heeft gekozen? Ga dan verder. Probeer opnieuw als u een ander bestand wilt kiezen.",
+            "de": f"Leider konnten wir Ihre {platform}-Datei nicht verarbeiten. Wenn Sie sicher sind, dass Sie die richtige Datei ausgewählt haben, klicken Sie auf Weiter. Um eine andere Datei auszuwählen, klicken Sie auf Erneut versuchen."
         }
     )
-    ok = props.Translatable({"en": "Try again", "nl": "Probeer opnieuw"})
-    cancel = props.Translatable({"en": "Continue", "nl": "Verder"})
+    ok = props.Translatable({"en": "Try again", "nl": "Probeer opnieuw", "de": "Erneut versuchen"})
+    cancel = props.Translatable({"en": "Continue", "nl": "Verder", "de": "Weiter"})
     return props.PropsUIPromptConfirm(text, ok, cancel)
 
 
@@ -337,7 +347,8 @@ def prompt_file(extensions, platform):
     description = props.Translatable(
         {
             "en": f"Please follow the download instructions and choose the file that you stored on your device. Click “Skip” at the right bottom, if you do not have a file from {platform}.",
-            "nl": f"Volg de download instructies en kies het bestand dat u opgeslagen heeft op uw apparaat. Als u geen {platform} bestand heeft klik dan op “Overslaan” rechts onder."
+            "nl": f"Volg de download instructies en kies het bestand dat u opgeslagen heeft op uw apparaat. Als u geen {platform} bestand heeft klik dan op “Overslaan” rechts onder.",
+            "de": f"Befolgen Sie bitte die Download-Anweisungen und wählen Sie die Datei aus, die Sie auf Ihrem Gerät gespeichert haben. Klicken Sie unten rechts auf „Überspringen“, wenn Sie keine Datei von {platform} haben."
         }
     )
     return props.PropsUIPromptFileInput(description, extensions)
