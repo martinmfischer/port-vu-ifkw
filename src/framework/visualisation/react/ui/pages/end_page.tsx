@@ -49,7 +49,9 @@ function prepareCopy ({ locale }: Props): Copy {
 const title = new TextBundle()
   .add('en', 'Thank you')
   .add('nl', 'Bedankt')
+  .add('de', 'Danke')
 
 const text = new TextBundle()
   .add('en', 'Thank you for your participation. You can now close the page or refresh to restart the donation flow.')
   .add('nl', 'Hartelijk dank voor uw deelname. U kunt deze pagina nu sluiten of de pagina verversen om de flow nogmaals te doorlopen.')
+  .add('de', 'Vielen Dank für Ihre Teilnahme. Sie können die Seite jetzt schließen oder aktualisieren, um den Spendenfluss neu zu starten.')

@@ -50,7 +50,9 @@ function prepareCopy ({ locale }: Props): Copy {
 const title = new TextBundle()
   .add('en', 'Error, not your fault!')
   .add('nl', 'Foutje, niet jouw schuld!')
+  .add('de', 'Fehler, nicht Ihre Schuld!')
 
 const text = new TextBundle()
   .add('en', 'Consult the researcher, or close the page')
   .add('nl', 'Raadpleeg de onderzoeker of sluit de pagina')
+  .add('de', 'Konsultieren Sie den Forscher oder schließen Sie die Seite')

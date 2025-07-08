@@ -167,8 +167,9 @@ function prepareCopy(locale: string): Record<string, string> {
   }
 }
 
-const noDataMsg = new TextBundle().add('en', 'No data').add('nl', 'Geen data')
+const noDataMsg = new TextBundle().add('en', 'No data').add('nl', 'Geen data').add('de', 'Keine Daten')
 
 const errorMsg = new TextBundle()
   .add('en', 'Could not create visualization')
   .add('nl', 'Kon visualisatie niet maken')
+  .add('de', 'Visualisierung konnte nicht erstellt werden')

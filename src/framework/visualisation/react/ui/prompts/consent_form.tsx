@@ -240,10 +240,11 @@ function prepareCopy({ locale }: Props): Copy {
 const donateQuestionLabel = new TextBundle()
   .add('en', 'Do you want to donate the above data?')
   .add('nl', 'Wilt u de bovenstaande gegevens doneren?')
+  .add('de', 'Möchten Sie die obigen Daten spenden?')
 
-const donateButtonLabel = new TextBundle().add('en', 'Yes, donate').add('nl', 'Ja, doneer')
+const donateButtonLabel = new TextBundle().add('en', 'Yes, donate').add('nl', 'Ja, doneer').add('de', 'Ja, spenden')
 
-const cancelButtonLabel = new TextBundle().add('en', 'No').add('nl', 'Nee')
+const cancelButtonLabel = new TextBundle().add('en', 'No').add('nl', 'Nee').add('de', 'Nein')
 
 const description = new TextBundle()
   .add(
@@ -253,4 +254,8 @@ const description = new TextBundle()
   .add(
     'nl',
     'Bepaal of u de onderstaande gegevens wilt doneren. Bekijk de gegevens zorgvuldig en pas zo nodig aan. Met uw donatie draagt u bij aan het eerder beschreven onderzoek. Alvast hartelijk dank.'
+  )
+  .add(
+    'de',
+    'Bestimmen Sie, ob Sie die unten stehenden Daten spenden möchten. Überprüfen Sie die Daten sorgfältig und passen Sie sie bei Bedarf an. Mit Ihrer Spende tragen Sie zur zuvor beschriebenen Forschung bei. Vielen Dank im Voraus.'
   )

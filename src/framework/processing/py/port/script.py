@@ -33,7 +33,13 @@ def process(session_id):
     LOGGER.info("Starting the donation flow")
     yield donate_logs(f"{session_id}-tracking")
 
-    platforms = [ ("WhatsApp", extract_whatsapp, whatsapp.validate), ("Facebook", extract_facebook, facebook.validate) ]
+    platforms = [ 
+        
+        ("Facebook", extract_facebook, facebook.validate),
+        ("Top WhatsApp-Chat 1", extract_whatsapp, whatsapp.validate), 
+        ("Top WhatsApp-Chat 2", extract_whatsapp, whatsapp.validate), 
+        ("Top WhatsApp-Chat 3", extract_whatsapp, whatsapp.validate), 
+    ]
 
     LOGGER.info("Platforms to process: %s", platforms)
 
@@ -60,7 +66,7 @@ def process(session_id):
             # Render the propmt file page
             # Accept zip, plain text, json, and files without extension (empty string for extension)
             promptFile = None
-            if platform_name == "WhatsApp":
+            if "WhatsApp" in platform_name:
                 promptFile = prompt_file("", platform_name)
             else:
                 promptFile = prompt_file("application/zip, text/plain, application/json", platform_name)
@@ -150,7 +156,8 @@ def create_empty_table(platform_name: str) -> props.PropsUIPromptConsentFormTabl
     """
     title = props.Translatable({
        "en": "Er ging niks mis, maar we konden niks vinden",
-       "nl": "Er ging niks mis, maar we konden niks vinden"
+       "nl": "Er ging niks mis, maar we konden niks vinden",
+        "de": "Es ist nichts schiefgegangen, aber wir konnten nichts finden"
     })
     df = pd.DataFrame(["No data found"], columns=["No data found"])
     table = props.PropsUIPromptConsentFormTable(f"{platform_name}_no_data_found", title, df)
@@ -160,7 +167,7 @@ def create_empty_table(platform_name: str) -> props.PropsUIPromptConsentFormTabl
 ##################################################################
 # Visualization helpers
 def create_chart(type: Literal["bar", "line", "area"], 
-                 nl_title: str, en_title: str, 
+                 nl_title: str, en_title: str, de_title: str,
                  x: str, y: Optional[str] = None, 
                  x_label: Optional[str] = None, y_label: Optional[str] = None,
                  date_format: Optional[str] = None, aggregate: str = "count", addZeroes: bool = True):
@@ -170,17 +177,17 @@ def create_chart(type: Literal["bar", "line", "area"],
             raise ValueError("If y is None, aggregate must be count if y is not specified")
         
     return props.PropsUIChartVisualization(
-        title = props.Translatable({"en": en_title, "nl": nl_title}),
+        title = props.Translatable({"en": en_title, "nl": nl_title, "de": de_title}),
         type = type,
         group = props.PropsUIChartGroup(column= x, label= x_label, dateFormat= date_format),
         values = [props.PropsUIChartValue(column= y, label= y_label, aggregate= aggregate, addZeroes= addZeroes)]       
     )
 
-def create_wordcloud(nl_title: str, en_title: str, column: str, 
+def create_wordcloud(nl_title: str, en_title: str, de_title: str, column: str, 
                      tokenize: bool = False, 
                      value_column: Optional[str] = None, 
                      extract: Optional[Literal["url_domain"]] = None):
-    return props.PropsUITextVisualization(title = props.Translatable({"en": en_title, "nl": nl_title}),
+    return props.PropsUITextVisualization(title = props.Translatable({"en": en_title, "nl": nl_title, "de": en_title}),
                                           type='wordcloud',
                                           text_column=column,
                                           value_column=value_column,
@@ -196,77 +203,77 @@ def extract_facebook(facebook_zip: str, _) -> list[props.PropsUIPromptConsentFor
 
     df = facebook.group_interactions_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook group interactions", "nl": "Facebook group interactions"})
-        vis = [create_wordcloud("Groepen met meeste interacties", "Groups with most interactions", "Group name", value_column="Times Interacted")]
+        table_title = props.Translatable({"en": "Facebook group interactions", "nl": "Facebook group interactions", "de": "Facebook Gruppeninteraktionen"})
+        vis = [create_wordcloud("Groepen met meeste interacties", "Groups with most interactions", "Gruppen mit den meisten Interaktionen", "Group name", value_column="Times Interacted")]
         table =  props.PropsUIPromptConsentFormTable("facebook_group_interactions", table_title, df, visualizations=vis) 
         tables_to_render.append(table)
 
     df = facebook.comments_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook comments", "nl": "Facebook comments"})
-        vis = [create_wordcloud("Meest voorkomende woorden in comments", "Most common words in comments", "Comment", tokenize=True)]
+        table_title = props.Translatable({"en": "Facebook comments", "nl": "Facebook comments", "de": "Facebook Kommentare"})
+        vis = [create_wordcloud("Meest voorkomende woorden in comments", "Most common words in comments", "Häufigste Wörter in Kommentaren", "Comment", tokenize=True)]
         table =  props.PropsUIPromptConsentFormTable("facebook_comments", table_title, df, visualizations=vis) 
         tables_to_render.append(table)
 
     df = facebook.likes_and_reactions_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook likes and reactions", "nl": "Facebook likes and reactions"})
-        vis = [create_chart('bar', "Meest gebruikte reacties", "Most used reactions", "Reaction")]
+        table_title = props.Translatable({"en": "Facebook likes and reactions", "nl": "Facebook likes and reactions", "de": "Facebook Likes und Reaktionen"})
+        vis = [create_chart('bar', "Meest gebruikte reacties", "Most used reactions", "Häufigsten Reaktionen", "Reaction")]
         table =  props.PropsUIPromptConsentFormTable("facebook_likes_and_reactions", table_title, df, visualizations=vis) 
         tables_to_render.append(table)
 
     df = facebook.your_badges_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook your badges", "nl": "Facebook your badges"})
+        table_title = props.Translatable({"en": "Facebook your badges", "nl": "Facebook your badges", "de": "Facebook Ihre Abzeichen"})
         table =  props.PropsUIPromptConsentFormTable("facebook_your_badges", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.your_posts_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook your posts", "nl": "Facebook your posts"})
+        table_title = props.Translatable({"en": "Facebook your posts", "nl": "Facebook your posts" , "de": "Facebook Ihre Beiträge"})
         table =  props.PropsUIPromptConsentFormTable("facebook_your_posts", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.your_search_history_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook your searh history", "nl": "Facebook your search history"})
-        vis = [create_wordcloud("Meest gebruikte zoektermen", "Most used search terms", "Search Term", tokenize=True)]
+        table_title = props.Translatable({"en": "Facebook your searh history", "nl": "Facebook your search history", "de": "Facebook Ihre Suchhistorie"})
+        vis = [create_wordcloud("Meest gebruikte zoektermen", "Most used search terms", "Suchanfragen", "Search Term", tokenize=True)]
         table =  props.PropsUIPromptConsentFormTable("facebook_your_search_history", table_title, df, visualizations=vis) 
         tables_to_render.append(table)
 
     df = facebook.recently_viewed_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook recently viewed", "nl": "Facebook recently viewed"})
+        table_title = props.Translatable({"en": "Facebook recently viewed", "nl": "Facebook recently viewed", "de": "Facebook Kürzlich Angesehenes"})
         table =  props.PropsUIPromptConsentFormTable("facebook_recently_viewed", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.recently_visited_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook recently visited", "nl": "Facebook recently visited"})
+        table_title = props.Translatable({"en": "Facebook recently visited", "nl": "Facebook recently visited", "de": "Facebook Kürzlich Besuchte"})
         table =  props.PropsUIPromptConsentFormTable("facebook_recently_visited", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.feed_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook feed", "nl": "Facebook feed"})
+        table_title = props.Translatable({"en": "Facebook feed", "nl": "Facebook feed", "de": "Facebook Feed"})
         table =  props.PropsUIPromptConsentFormTable("facebook_feed", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.controls_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook controls", "nl": "Facebook controls"})
+        table_title = props.Translatable({"en": "Facebook controls", "nl": "Facebook controls", "de": "Facebook Einstellungen"})
         table =  props.PropsUIPromptConsentFormTable("facebook_controls", table_title, df) 
         tables_to_render.append(table)
 
     df = facebook.group_posts_and_comments_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook group posts and comments", "nl": "Facebook group posts and comments"})
+        table_title = props.Translatable({"en": "Facebook group posts and comments", "nl": "Facebook group posts and comments", "de": "Facebook Gruppenbeiträge und Kommentare"})
         table =  props.PropsUIPromptConsentFormTable("facebook_group_posts_and_comments", table_title, df) 
         tables_to_render.append(table)
         
     df = facebook.your_posts_check_ins_photos_and_videos_1_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook your posts check ins photos and videos", "nl": "Facebook group posts and comments"})
+        table_title = props.Translatable({"en": "Facebook your posts check ins photos and videos", "nl": "Facebook group posts and comments", "de": "Facebook Ihre Beiträge, Check-Ins, Fotos und Videos"})
         table =  props.PropsUIPromptConsentFormTable("facebook_your_posts_check_ins_photos_and_videos", table_title, df) 
         tables_to_render.append(table)
 
@@ -290,6 +297,7 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
             create_wordcloud(
                 "Meest voorkomende woorden in chats",
                 "Most common words in chats",
+                "Häufigste Wörter in Chats",
                 "message",
                 tokenize=True
             ),
@@ -297,6 +305,7 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
                 "bar",
                 "Aantal berichten per contact",
                 "Number of messages per contact",
+                "Anzahl der Nachrichten pro Kontakt",
                 "username"
             )
         ]
@@ -305,14 +314,6 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
 
     return tables_to_render
 
-"""
-    df = facebook.group_interactions_to_df(facebook_zip)
-    if not df.empty:
-        table_title = props.Translatable({"en": "Facebook group interactions", "nl": "Facebook group interactions"})
-        vis = [create_wordcloud("Groepen met meeste interacties", "Groups with most interactions", "Group name", value_column="Times Interacted")]
-        table =  props.PropsUIPromptConsentFormTable("facebook_group_interactions", table_title, df, visualizations=vis) 
-        tables_to_render.append(table)
-"""
 
 ##########################################
 # Functions provided by Eyra did not change

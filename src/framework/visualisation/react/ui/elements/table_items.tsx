@@ -80,8 +80,8 @@ function getTranslations(locale: string): Record<string, string> {
 }
 
 const translations = {
-  columns: new TextBundle().add('en', 'columns').add('nl', 'kolommen'),
-  rows: new TextBundle().add('en', 'rows').add('nl', 'rijen'),
-  noData: new TextBundle().add('en', 'no data').add('nl', 'geen data'),
-  deleted: new TextBundle().add('en', 'deleted').add('nl', 'verwijderd')
+  columns: new TextBundle().add('en', 'columns').add('nl', 'kolommen').add('de', 'Spalten'),
+  rows: new TextBundle().add('en', 'rows').add('nl', 'rijen').add('de', 'Zeilen'),
+  noData: new TextBundle().add('en', 'no data').add('nl', 'geen data').add('de', 'keine Daten'),
+  deleted: new TextBundle().add('en', 'deleted').add('nl', 'verwijderd').add('de', 'gelöscht')
 }

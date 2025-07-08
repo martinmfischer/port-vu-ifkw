@@ -89,3 +89,4 @@ export const Questionnaire = (props: Props): JSX.Element => {
 const continueLabel = new TextBundle()
   .add('en', 'Continue')
   .add('nl', 'Verder')
+  .add('de', 'Weiter')

@@ -369,7 +369,8 @@ from port.api.props import Translatable
 
 copy = Translatable({
     "en": "English text",
-    "nl": "Nederlandse tekst"
+    "nl": "Nederlandse tekst",
+    "de": "Deutscher Text"
 })
 ```
 

@@ -364,6 +364,6 @@ function getTranslations(locale: string): Record<string, string> {
 }
 
 const translations = {
-  delete: new TextBundle().add('en', 'Delete').add('nl', 'Verwijder'),
-  undo: new TextBundle().add('en', 'Undo').add('nl', 'Herstel')
+  delete: new TextBundle().add('en', 'Delete').add('nl', 'Verwijder').add('de', 'Löschen'),
+  undo: new TextBundle().add('en', 'Undo').add('nl', 'Herstel').add('de', 'Rückgängig machen'),
 }
