@@ -11,7 +11,7 @@ import zipfile
 import re
 
 import pandas as pd
-
+import datetime
 import port.unzipddp as unzipddp
 import port.helpers as helpers
 from port.validate import (
@@ -96,6 +96,24 @@ DDP_CATEGORIES = [
     )
 ]
 
+DDP_TO_RETAIN = [
+            "events_interactions.json",
+            "group_interactions.json",
+            "comments.json",
+            "posts_and_comments.json",
+            "who_you_follow.json",
+            "your_comments_in_groups.json",
+            "your_group_membership_activity.json",
+            "your_posts_in_groups.json",
+            "pages_and_profiles_you_follow.json",
+            "pages_and_profiles_you've_recommended.json",
+            "pages_and_profiles_you've_unfollowed.json",
+            "pages_you've_liked.json",
+            "language_and_locale.json",
+            "profile_information.json",
+]
+
+
 STATUS_CODES = [
     StatusCode(id=0, description="Valid DDP", message=""),
     StatusCode(id=1, description="Not a valid DDP", message=""),
@@ -130,31 +148,81 @@ def validate(zfile: Path) -> ValidateInput:
 
     return validation
 
-
-def group_interactions_to_df(facebook_zip: str) -> pd.DataFrame:
-
-    b = unzipddp.extract_file_from_zip(facebook_zip, "group_interactions.json")
+#AI
+def likes_to_df(facebook_zip: str) -> pd.DataFrame:
+    """
+    Extracts likes from a facebook zip file and returns them as a pandas DataFrame
+    """
+    b = unzipddp.extract_file_from_zip(facebook_zip, "likes.json")
     d = unzipddp.read_json_from_bytes(b)
 
     out = pd.DataFrame()
     datapoints = []
 
     try:
-        items = d["group_interactions_v2"][0]["entries"]
+        items = d["likes"]
         for item in items:
             datapoints.append((
-                item.get("data", {}).get("name", None),
-                item.get("data", {}).get("value", '').split(" ")[0],
-                item.get("data", {}).get("uri", None)
+                item.get("title", ""),
+                item["data"][0].get("like", {}).get("like", ""),
+                helpers.epoch_to_iso(item.get("timestamp", {}))
             ))
-        out = pd.DataFrame(datapoints, columns=["Group name", "Times Interacted", "Group Link"])
-        out = out.sort_values(by="Times Interacted", ascending=False)
+        out = pd.DataFrame(datapoints, columns=["Action", "Like", "Date"])
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
 
     return out
 
+#AI
+def follows_to_df(facebook_zip: str) -> pd.DataFrame:  
+    """
+    Extracts follows from a facebook zip file and returns them as a pandas DataFrame
+    """
+    logger.debug("Extracting follows from facebook zip!" )
+    filesnames = [
+        "who_you've_followed.json",
+        "who_you_follow.json",
+        "pages_and_profiles_you_follow.json",
+
+    ]
+    found_files = []
+    rows = []
+    for filename in filesnames:
+        try:
+            b = unzipddp.extract_file_from_zip(facebook_zip, filename)
+            found_files.append(b)
+            logger.debug("Found file in zip: %s", filename)
+        except unzipddp.FileNotFoundInZipError:
+            logger.debug("File %s not found in zip: %s", filename)
+    for found in found_files:
+        d = unzipddp.read_json_from_bytes(found)
+        import pprint
+
+        logger.debug("Extracted file to:")
+        logger.debug(pprint.pprint(d))
+
+
+        items = d.get("pages_followed_v2", [])
+
+        
+        for item in items:
+            # defensive extraction
+            name = item.get("data", [{}])[0].get("name")
+            title = item.get("title")
+            timestamp = item.get("timestamp")
+
+            rows.append({
+                "name": name,
+                "title": title,
+                "timestamp": timestamp
+            })
+
+    df = pd.DataFrame(rows)
+
+    out = df
+
+    return out
 
 def comments_to_df(facebook_zip: str) -> pd.DataFrame:
 
@@ -204,29 +272,6 @@ def likes_and_reactions_to_df(facebook_zip: str) -> pd.DataFrame:
     return out
 
 
-def your_badges_to_df(facebook_zip: str) -> pd.DataFrame:
-
-    b = unzipddp.extract_file_from_zip(facebook_zip, "your_badges.json")
-    d = unzipddp.read_json_from_bytes(b)
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        for k, v in d["group_badges_v2"].items():
-            datapoints.append((
-                k,
-                ', '.join(v),
-                len(v)
-            ))
-        out = pd.DataFrame(datapoints, columns=["Group name", "Badges", "Number of badges"])
-        out = out.sort_values(by="Number of badges", ascending=False)
-
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
-
 
 def find_items(d: dict[Any, Any],  key_to_match: str) -> str:
     """
@@ -263,83 +308,6 @@ def find_items(d: dict[Any, Any],  key_to_match: str) -> str:
 
     return out
             
-
-
-def your_posts_to_df(facebook_zip: str) -> pd.DataFrame:
-
-    b = unzipddp.extract_file_from_zip(facebook_zip, "your_posts_1.json")
-    d = unzipddp.read_json_from_bytes(b)
-    if isinstance(d, dict) == True:
-        d = [d]
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        for item in d:
-            denested_dict = helpers.dict_denester(item)
-
-            datapoints.append((
-                find_items(denested_dict, "title"),
-                find_items(denested_dict, "post"),
-                helpers.epoch_to_iso(find_items(denested_dict, "timestamp")),
-                find_items(denested_dict, "url"),
-            ))
-
-        out = pd.DataFrame(datapoints, columns=["Title", "Post", "Date", "Url"])
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
-
-
-def your_posts_check_ins_photos_and_videos_1_to_df(facebook_zip: str) -> pd.DataFrame:
-
-    b = unzipddp.extract_file_from_zip(facebook_zip, "your_posts__check_ins__photos_and_videos_1.json")
-    d = unzipddp.read_json_from_bytes(b)
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        for item in d:
-            denested_dict = helpers.dict_denester(item)
-
-            datapoints.append((
-                find_items(denested_dict, "title"),
-                find_items(denested_dict, "post"),
-                helpers.epoch_to_iso(find_items(denested_dict, "timestamp")),
-                find_items(denested_dict, "url"),
-            ))
-
-        out = pd.DataFrame(datapoints, columns=["Title", "Post", "Date", "Url"])
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
-
-
-def your_search_history_to_df(facebook_zip: str) -> pd.DataFrame:
-
-    b = unzipddp.extract_file_from_zip(facebook_zip, "your_search_history.json")
-    d = unzipddp.read_json_from_bytes(b)
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        items = d["searches_v2"]
-        for item in items:
-            datapoints.append((
-                item["data"][0].get("text", ""),
-                helpers.epoch_to_iso(item.get("timestamp", {}))
-            ))
-
-        out = pd.DataFrame(datapoints, columns=["Search Term", "Date"])
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
 
 
 def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
@@ -402,60 +370,6 @@ def recently_visited_to_df(facebook_zip: str) -> pd.DataFrame:
                         helpers.epoch_to_iso(entry.get("timestamp"))
                     ))
         out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date"])
-        out = out.sort_values(by="Date", key=helpers.sort_isotimestamp_empty_timestamp_last)
-        
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
-
-
-def feed_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = unzipddp.extract_file_from_zip(facebook_zip, "feed.json")
-    d = unzipddp.read_json_from_bytes(b)
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        items = d["people_and_friends_v2"]
-        for item in items:
-            if "entries" in item:
-                for entry in item["entries"]:
-                    datapoints.append((
-                        item.get("name", ""),
-                        entry.get("data", {}).get("name", ""),
-                        entry.get("data", {}).get("uri", ""),
-                        helpers.epoch_to_iso(entry.get("timestamp"))
-                    ))
-        out = pd.DataFrame(datapoints, columns=["Category", "Name", "Link", "Date"])
-        out = out.sort_values(by="Date", key=helpers.sort_isotimestamp_empty_timestamp_last)
-        
-    except Exception as e:
-        logger.error("Exception caught: %s", e)
-
-    return out
-
-
-def controls_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = unzipddp.extract_file_from_zip(facebook_zip, "controls.json")
-    d = unzipddp.read_json_from_bytes(b)
-
-    out = pd.DataFrame()
-    datapoints = []
-
-    try:
-        items = d["controls"]
-        for item in items:
-            if "entries" in item:
-                for entry in item["entries"]:
-                    datapoints.append((
-                        item.get("name", ""),
-                        entry.get("data", {}).get("name", ""),
-                        entry.get("data", {}).get("uri", ""),
-                        helpers.epoch_to_iso(entry.get("timestamp"))
-                    ))
-        out = pd.DataFrame(datapoints, columns=["Category", "Name", "Link", "Date"])
         out = out.sort_values(by="Date", key=helpers.sort_isotimestamp_empty_timestamp_last)
         
     except Exception as e:
