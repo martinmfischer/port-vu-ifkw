@@ -16,6 +16,9 @@ from port.my_exceptions import FileNotFoundInZipError
 
 logger = logging.getLogger(__name__)
 
+def fix_mojibake(s: str) -> str:
+    return s.encode('latin1').decode('utf8')
+
 def extract_file_from_zip(zfile: str, file_to_extract: str) -> io.BytesIO:
     """
     Extracts a specific file from a zipfile buffer
@@ -86,7 +89,7 @@ def _read_json(json_input: Any, json_reader: Callable[[Any, str], Any]) -> dict[
             break
 
         except json.JSONDecodeError:
-            logger.error("Cannot decode json with encoding: %s", encoding)
+            logger.error("Cannot decode json with encoding: %s and content: %s", encoding, json_input[:100] if isinstance(json_input, bytes) else json_input)
         except TypeError as e:
             logger.error("%s, could not convert json bytes", e)
             break

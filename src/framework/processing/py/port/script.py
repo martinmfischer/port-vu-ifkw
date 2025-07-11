@@ -107,8 +107,8 @@ def process(session_id):
 
         # Render data on screen
         if table_list is not None:
-            LOGGER.info("Prompt consent; %s", platform_name)
-            LOGGER.debug("Table list: %s", table_list)
+            #LOGGER.info("Prompt consent; %s", platform_name)
+            #LOGGER.debug("Table list: %s", table_list)
             yield donate_logs(f"{session_id}-tracking")
 
             # Check if extract something got extracted
@@ -219,11 +219,19 @@ def extract_facebook(facebook_zip: str, _) -> list[props.PropsUIPromptConsentFor
 
     df = facebook.follows_to_df(facebook_zip)
     if not df.empty:
-        table_title = props.Translatable({"en": "Facebook follows", "nl": "Facebook volgt", "de": "Gefolgte Seiten auf Facebook"})
-        #vis = [create_chart('bar', "Anzahl Follows", "Number of follows", "Anzahl der Follows", "Followed page")]
-        table =  props.PropsUIPromptConsentFormTable("facebook_follows", table_title, df) 
+        table_title = props.Translatable({"en": "Facebook follows", "nl": "Facebook volgt", "de": "Gefolgte Personen auf Facebook"})
+        vis = [create_wordcloud("Meest voorkomende woorden in follöws", "Most common words in followed accounts", "Häufigste Wörter in gefolgten Personen-Accounts", "name", tokenize=True)]
+        table =  props.PropsUIPromptConsentFormTable("facebook_follows", table_title, df, visualizations=vis) 
         tables_to_render.append(table)
+    else:
+        LOGGER.warning("No followed persons found in Facebook data, df empty")
 
+    df = facebook.followed_pages_to_df(facebook_zip)
+    if not df.empty:
+        table_title = props.Translatable({"en": "Facebook followed pages", "nl": "Facebook gevolgde pagina's", "de": "Gefolgte Seiten auf Facebook"})
+        vis = [create_wordcloud("Meest voorkomende woorden in follöws", "Most common words in followed accounts", "Häufigste Wörter in gefolgten Accounts", "name", tokenize=True)]
+        table =  props.PropsUIPromptConsentFormTable("facebook_followed_pages", table_title, df, visualizations=vis) 
+        tables_to_render.append(table)
 
     return tables_to_render
 
@@ -235,8 +243,8 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
 
     # Extract chat messages
     df = whatsapp.chatlog_to_df(whatsapp_zip)
-    LOGGER.debug("Extracted WhatsApp chat messages DataFrame shape in script.py: %s", df.shape)
-    LOGGER.debug("head of extracted messages in script.py: %s", df.head())
+    #LOGGER.debug("Extracted WhatsApp chat messages DataFrame shape in script.py: %s", df.shape)
+    #LOGGER.debug("head of extracted messages in script.py: %s", df.head())
     # Convert all cells to strings:
     df = df.astype(str)
     if not df.empty:

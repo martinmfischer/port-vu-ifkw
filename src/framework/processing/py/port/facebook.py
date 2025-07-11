@@ -9,7 +9,7 @@ import math
 import logging
 import zipfile
 import re
-
+import io
 import pandas as pd
 import datetime
 import port.unzipddp as unzipddp
@@ -120,6 +120,62 @@ STATUS_CODES = [
     StatusCode(id=2, description="Bad zipfile", message=""),
 ]
 
+def return_items_based_on_key_pattern(d: dict[Any, Any], keys_to_match: list[str]) -> list[Any]:
+    """
+    Returns a list of items from a dictionary that match any of the keys in keys_to_match.
+    d is a denested dict
+    keys_to_match is a list of strings to match against the keys in d
+    If no keys match, an empty list is returned.
+    :param d: Dictionary to search in
+    :param keys_to_match: List of keys to match against the keys in d
+    :return: List of items that match any of the keys in keys_to_match
+
+    """
+    #key_list = []
+    #out_list = []
+
+   # for key in d.keys():
+    #    for key_to_match in keys_to_match:
+     #       if key_to_match in key:
+      #          key_list.append(key)
+
+    #for fitting_key in key_list:
+    #    out_list.append(d.get(fitting_key))        
+    #return out_list
+    return [v for k, v in d.items() if any(match in k for match in keys_to_match)]
+
+def return_files_based_on_filenames(zip_path: str, filenames: list[str] | str) -> list[io.BytesIO]:
+    """
+    Returns a list of files from a zipfile that match any of the filenames in filenames.
+    :param zipfile: Path to the zipfile
+    :param filenames: List of filenames to match against the files in the zipfile
+    :return: List of files that match any of the filenames in filenames
+    """
+    matching_files = []
+
+    if isinstance(filenames, str):
+        filenames = [filenames]
+
+    for filename in filenames:
+        try:
+            content = unzipddp.extract_file_from_zip(zip_path, filename)
+
+            # Prüfe, ob das zurückgegebene BytesIO leer ist
+            content.seek(0, io.SEEK_END)
+            size = content.tell()
+            content.seek(0)  # Reset auf Anfang
+
+            if size == 0:
+                logger.warning("return_files_based_on_filenames: File found but empty (probably missing in zip): %s", filename)
+                continue  # Datei ignorieren, da leer / vermutlich nicht gefunden
+
+            matching_files.append(content)
+            logger.debug("return_files_based_on_filenames: Found and extracted file in zip: %s", filename)
+
+        except Exception as e:
+            logger.error("return_files_based_on_filenames: Unexpected error while extracting %s: %s", filename, e, exc_info=True)
+
+    return matching_files
 
 def validate(zfile: Path) -> ValidateInput:
     """
@@ -148,22 +204,25 @@ def validate(zfile: Path) -> ValidateInput:
 
     return validation
 
-#AI
+
 def likes_to_df(facebook_zip: str) -> pd.DataFrame:
     """
     Extracts likes from a facebook zip file and returns them as a pandas DataFrame
     """
-    b = unzipddp.extract_file_from_zip(facebook_zip, "likes.json")
+
+    b = return_files_based_on_filenames(facebook_zip, "likes.json")[0]
     d = unzipddp.read_json_from_bytes(b)
 
     out = pd.DataFrame()
     datapoints = []
 
     try:
-        items = d["likes"]
+        
+        items = return_items_based_on_key_pattern(d, ["likes"])
+        #items = d["likes"]
         for item in items:
             datapoints.append((
-                item.get("title", ""),
+                unzipddp.fix_mojibake(item.get("title", "")),
                 item["data"][0].get("like", {}).get("like", ""),
                 helpers.epoch_to_iso(item.get("timestamp", {}))
             ))
@@ -174,55 +233,141 @@ def likes_to_df(facebook_zip: str) -> pd.DataFrame:
 
     return out
 
-#AI
+
+
+
+
 def follows_to_df(facebook_zip: str) -> pd.DataFrame:  
     """
     Extracts follows from a facebook zip file and returns them as a pandas DataFrame
     """
     logger.debug("Extracting follows from facebook zip!" )
-    filesnames = [
+    filenames = [
         "who_you've_followed.json",
-        "who_you_follow.json",
-        "pages_and_profiles_you_follow.json",
-
+        "who_you_follow.json"
     ]
-    found_files = []
+
     rows = []
-    for filename in filesnames:
-        try:
-            b = unzipddp.extract_file_from_zip(facebook_zip, filename)
-            found_files.append(b)
-            logger.debug("Found file in zip: %s", filename)
-        except unzipddp.FileNotFoundInZipError:
-            logger.debug("File %s not found in zip: %s", filename)
+    found_files = return_files_based_on_filenames(facebook_zip, filenames)
+    if len(found_files) == 0:
+        logger.warning("No follows found in facebook zip file!")
+        return pd.DataFrame()
+    
     for found in found_files:
-        d = unzipddp.read_json_from_bytes(found)
-        import pprint
-
-        logger.debug("Extracted file to:")
-        logger.debug(pprint.pprint(d))
-
-
-        items = d.get("pages_followed_v2", [])
+        try:
+            d = unzipddp.read_json_from_bytes(found) ### THIS DOES NOT WORK RIGHT NOW, THROWS ERROR FAILING TO DECODE JSON
+        except Exception as e:
+            logger.error("Follows_to_df: Failed to decode JSON from file: %s, error: %s", found, e)
+            continue
+    
+        logger.debug("!! Extracting followed persons from file: %s", found)
+        #logger.debug("Following keys: %s", following_keys)
 
         
+        items = return_items_based_on_key_pattern(d, ["follow", "follows"])
+        logger.debug("Items found: %s", items)
+        if len(items) == 0:
+            logger.warning("No follows found in file: %s", found)
+            continue
+        if len(items) == 1 and isinstance(items[0], list):
+            # Likely doubled list, denesting
+            items = items[0]
+
         for item in items:
+            logger.debug("Item type is %s", type(item))
+            logger.debug("Item content: %s", item)
             # defensive extraction
-            name = item.get("data", [{}])[0].get("name")
-            title = item.get("title")
-            timestamp = item.get("timestamp")
+            name = unzipddp.fix_mojibake(item.get("name", None))
+            title = item.get("title", None)
+            timestamp = helpers.epoch_to_iso(item.get("timestamp", None))
 
             rows.append({
                 "name": name,
                 "title": title,
                 "timestamp": timestamp
             })
+    
+    out = pd.DataFrame(rows)
+    logger.debug("Length of extracted follows: %s", len(out))
+    return out
 
-    df = pd.DataFrame(rows)
+def followed_pages_to_df(facebook_zip: str) -> pd.DataFrame:
+    """
+    Extracts followed pages from a facebook zip file and returns them as a pandas DataFrame
 
-    out = df
+    DDP structure often looks like this:
+
+      "pages_followed_v2": [
+    {
+      "timestamp": 1363970068,
+      "data": [
+        {
+          "name": "Pendulum"
+        }
+      ],
+      "title": "Pendulum"
+    },
+
+    """
+
+    #logger.debug("Extracting followed pages from facebook zip!" )
+
+    #logger.debug("Extracting follows from facebook zip!" )
+    filenames = [
+        "pages_and_profiles_you_follow.json"
+    ]
+    found_files = return_files_based_on_filenames(facebook_zip, filenames)
+    rows = []
+    logger.debug("Found number of files: %s", len(found_files))
+    for found in found_files:
+        d = unzipddp.read_json_from_bytes(found)
+
+
+        following_keys = d.keys()
+        logger.debug("Extracting followed persons from file: %s", found)
+        logger.debug("Following keys: %s", following_keys)
+
+        items = []
+        #logger.debug("We got the following items after denesting the dict in the json: %s", items)
+        for key in following_keys:
+            # Make sure we are not gettin something completely random
+            if not "follow" in key:
+                logger.warning("Key %s does not contain 'follow', consider adjusting/skipping", key)
+            items.append(d.get(key, []))
+
+
+        #logger.debug("Length of items: %s", len(items))
+
+
+        for list_of_dicts in items:
+            for dictionary in list_of_dicts:
+
+            
+            #if not isinstance(dictionary, dict):
+            #    logger.warning("dictionary is not a dict: %s", dictionary)
+            #    if (isinstance(dictionary, list) and len(dictionary) == 1):
+            #        dictionary = dictionary[0]
+            #    else:
+            #        logger.warning("Item is not a list with one element, skipping: %s", dictionary)
+            #        continue
+            
+
+                #logger.debug("Item type is %s", type(dictionary))
+                #logger.debug("Item content: %s", dictionary)
+                name = unzipddp.fix_mojibake(dictionary["data"][0]["name"])
+                title = dictionary.get("title", None)
+                timestamp = helpers.epoch_to_iso(dictionary.get("timestamp", None))
+
+                rows.append({
+                    "name": name,
+                    "title": title,
+                    "timestamp": timestamp
+                })
+
+    out = pd.DataFrame(rows)
 
     return out
+
 
 def comments_to_df(facebook_zip: str) -> pd.DataFrame:
 
@@ -231,19 +376,42 @@ def comments_to_df(facebook_zip: str) -> pd.DataFrame:
 
     out = pd.DataFrame()
     datapoints = []
-
+    
     try:
-        items = d["comments_v2"]
-        for item in items:
-            datapoints.append((
-                item.get("title", ""),
-                item["data"][0].get("comment", {}).get("comment", ""),
-                helpers.epoch_to_iso(item.get("timestamp", {}))
-            ))
+        #There are different versions, each with a different suffix like _v2, but all starting with comments. Adjusting for that
+
+        dict_list = return_items_based_on_key_pattern(d, ["comments"])
+
+        if len(dict_list) == 0:
+            logger.warning("No comments found in file: %s", facebook_zip)
+            return pd.DataFrame()
+        
+        if len(dict_list) == 1 and isinstance(dict_list, list):
+            #Likely doubled list, denesting
+            dict_list = dict_list[0]
+        #logger.debug("dict_list has length %s and looks like that: %s", len(dict_list), dict_list)
+
+        
+        for d in dict_list:
+            #logger.debug("d has length %s and looks like that: %s", len(d), d)
+            
+            title = unzipddp.fix_mojibake(d.get("title", ""))
+            timestamp = helpers.epoch_to_iso(d.get("timestamp", None))
+
+            # Robust aus dem inneren 'comment' ziehen
+            comment_text = ""
+            data = d.get("data", [])
+            if data and isinstance(data, list):
+                first_data = data[0]
+                if isinstance(first_data, dict):
+                    comment_obj = first_data.get("comment", {})
+                    comment_text = unzipddp.fix_mojibake(comment_obj.get("comment", ""))
+
+            datapoints.append((title, comment_text, timestamp))
         out = pd.DataFrame(datapoints, columns=["Action", "Comment", "Date"])
 
     except Exception as e:
-        logger.error("Exception caught: %s", e)
+        logger.error("Exception caught in comments_to_df: %s", e)
 
     return out
 
