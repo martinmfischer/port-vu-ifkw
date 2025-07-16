@@ -1,7 +1,7 @@
 import { PropsUITable, TableContext } from '../../../../../types/elements'
 import { DateFormat } from '../../../../../types/visualizations'
 
-export function formatDate(
+export function formatDate (
   dateString: string[],
   format: DateFormat,
   minValues: number = 10
@@ -82,7 +82,7 @@ export function formatDate(
   return [formattedDate, sortableDate]
 }
 
-function autoFormatDate(dateNumbers: number[], minValues: number): DateFormat {
+function autoFormatDate (dateNumbers: number[], minValues: number): DateFormat {
   const [minTime, maxTime] = getDomain(dateNumbers)
 
   let autoFormat: DateFormat = 'hour'
@@ -94,7 +94,7 @@ function autoFormatDate(dateNumbers: number[], minValues: number): DateFormat {
   return autoFormat
 }
 
-function createSortable(
+function createSortable (
   domain: [number, number],
   interval: string,
   formatter: (date: Date) => string
@@ -126,7 +126,7 @@ function createSortable(
   return sortable
 }
 
-function getDomain(numbers: number[]): [number, number] {
+function getDomain (numbers: number[]): [number, number] {
   let min = numbers[0]
   let max = numbers[0]
   numbers.forEach((nr) => {
@@ -136,18 +136,18 @@ function getDomain(numbers: number[]): [number, number] {
   return [min, max]
 }
 
-export function tokenize(text: string): string[] {
+export function tokenize (text: string): string[] {
   const tokens = text.split(' ')
   return tokens.filter((token) => /\p{L}/giu.test(token)) // only tokens with word characters
 }
 
-export function getTableColumn(table: PropsUITable & TableContext, column: string): string[] {
+export function getTableColumn (table: PropsUITable & TableContext, column: string): string[] {
   const columnIndex = table.head.cells.findIndex((cell) => cell === column)
   if (columnIndex < 0) throw new Error(`column ${table.id}.${column} not found`)
   return table.body.rows.map((row) => row.cells[columnIndex])
 }
 
-export function rescaleToRange(
+export function rescaleToRange (
   value: number,
   min: number,
   max: number,
@@ -155,11 +155,11 @@ export function rescaleToRange(
   newMax: number
 ): number {
   let scaled = (value - min) / (max - min)
-  scaled = scaled || 0 // prevent NaN
+  scaled = Number.isFinite(scaled) ? scaled : 0 // prevent NaN
   return scaled * (newMax - newMin) + newMin
 }
 
-export function extractUrlDomain(x: string): string {
+export function extractUrlDomain (x: string): string {
   let domain
   try {
     const url = new URL(x)
