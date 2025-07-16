@@ -6,7 +6,7 @@ import {
   ChartVisualization
 } from '../../../../../types/visualizations'
 
-export async function prepareChartData(
+export async function prepareChartData (
   table: PropsUITable & TableContext,
   visualization: ChartVisualization
 ): Promise<ChartVisualizationData> {
@@ -16,7 +16,7 @@ export async function prepareChartData(
   return createVisualizationData(visualization, aggregate)
 }
 
-function createVisualizationData(
+function createVisualizationData (
   visualization: ChartVisualization,
   aggregate: Record<string, PrepareAggregatedData>
 ): ChartVisualizationData {
@@ -50,7 +50,7 @@ function createVisualizationData(
   return visualizationData
 }
 
-function emptyVisualizationData(visualization: ChartVisualization): ChartVisualizationData {
+function emptyVisualizationData (visualization: ChartVisualization): ChartVisualizationData {
   return {
     type: visualization.type,
     xKey: {
@@ -64,7 +64,7 @@ function emptyVisualizationData(visualization: ChartVisualization): ChartVisuali
   }
 }
 
-function aggregateData(
+function aggregateData (
   table: PropsUITable & TableContext,
   visualization: ChartVisualization
 ): Record<string, PrepareAggregatedData> {
@@ -105,7 +105,7 @@ function aggregateData(
 
     // if missing values should be treated as zero, we need to add the missing values after knowing all groups
     const addZeroes = value.addZeroes ?? false
-    const groupSummary: Record<string, { n: number; sum: number }> = {}
+    const groupSummary: Record<string, { n: number, sum: number }> = {}
 
     for (let i = 0; i < rowIds.length; i++) {
       // loop over rows of table
@@ -186,10 +186,10 @@ function aggregateData(
   return aggregate
 }
 
-function prepareX(
+function prepareX (
   table: PropsUITable & TableContext,
   visualization: ChartVisualization
-): { groupBy: string[]; xSortable: Record<string, string | number> | null } {
+): { groupBy: string[], xSortable: Record<string, string | number> | null } {
   let groupBy = getTableColumn(table, visualization.group.column)
   if (groupBy.length === 0) {
     throw new Error(`X column ${table.id}.${visualization.group.column} not found`)

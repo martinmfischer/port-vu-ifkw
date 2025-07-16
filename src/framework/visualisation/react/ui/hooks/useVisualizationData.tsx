@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 type Status = 'loading' | 'success' | 'error'
 
-export default function useVisualizationData(
+export default function useVisualizationData (
   table: TableWithContext,
   visualization: VisualizationType
 ): [VisualizationData | undefined, Status] {
@@ -25,7 +25,7 @@ export default function useVisualizationData(
     if (worker != null && window.Worker !== undefined) {
       setStatus('loading')
       worker.onmessage = (
-        e: MessageEvent<{ status: Status; visualizationData: VisualizationData }>
+        e: MessageEvent<{ status: Status, visualizationData: VisualizationData }>
       ) => {
         setStatus(e.data.status)
         setVisualizationData(e.data.visualizationData)

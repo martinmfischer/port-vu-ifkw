@@ -59,7 +59,7 @@ export const Figure = ({
     return () => clearTimeout(timer)
   }, [status])
 
-  function toggleDouble() {
+  function toggleDouble (): void {
     setResizeLoading(true)
     if (showStatus === 'visible') {
       setShowStatus('double')
@@ -80,25 +80,25 @@ export const Figure = ({
 
   if (visualizationData == null && status === 'loading') {
     return (
-      <div className="flex justify-center items-center gap-6">
-        <div className="w-10 h-10">
+      <div className='flex justify-center items-center gap-6'>
+        <div className='w-10 h-10'>
           <Lottie animationData={spinnerDark} loop />
         </div>
-        <span className="text-grey1">{title}</span>
+        <span className='text-grey1'>{title}</span>
       </div>
     )
   }
   if (status === 'error') {
-    return <div className="flex justify-center items-center text-error">{errorMsg}</div>
+    return <div className='flex justify-center items-center text-error'>{errorMsg}</div>
   }
-
   let height = visualization.height || 250
+
   if (showStatus === 'double') height = height * 2
 
   return (
-    <div className=" max-w overflow-hidden  bg-grey6 rounded-md border-[0.2rem] border-grey4">
-      <div className="flex justify-between">
-        <Title6 text={title} margin="p-3" />
+    <div className=' max-w overflow-hidden  bg-grey6 rounded-md border-[0.2rem] border-grey4'>
+      <div className='flex justify-between'>
+        <Title6 text={title} margin='p-3' />
         <button
           onClick={toggleDouble}
           className={showStatus !== 'hidden' && canDouble ? 'text-primary' : 'hidden'}
@@ -106,12 +106,12 @@ export const Figure = ({
           {showStatus === 'double' ? zoomOutIcon : zoomInIcon}
         </button>
       </div>
-      <div key={table.id} className="w-full overflow-auto">
-        <div className="flex flex-col ">
+      <div key={table.id} className='w-full overflow-auto'>
+        <div className='flex flex-col '>
           <div
             // ref={ref}
-            className="grid relative z-50 w-full pr-1  min-w-[500px]"
-            style={{ gridTemplateRows: height + 'px' }}
+            className='grid relative z-50 w-full pr-1  min-w-[500px]'
+            style={{ gridTemplateRows: `${height}px` }}
           >
             <RenderVisualization
               visualizationData={visualizationData}
@@ -138,10 +138,10 @@ export const RenderVisualization = memo(
     if (visualizationData == null) return null
 
     const fallback = (
-      <div className="m-auto font-bodybold text-4xl text-grey2 ">{fallbackMessage}</div>
+      <div className='m-auto font-bodybold text-4xl text-grey2 '>{fallbackMessage}</div>
     )
 
-    if (loading) return null
+    if (loading === true) return null
 
     if (['line', 'bar', 'area'].includes(visualizationData.type)) {
       const chartVisualizationData: ChartVisualizationData =
@@ -160,7 +160,7 @@ export const RenderVisualization = memo(
   }
 )
 
-function prepareCopy(locale: string): Record<string, string> {
+function prepareCopy (locale: string): Record<string, string> {
   return {
     errorMsg: Translator.translate(errorMsg, locale),
     noDataMsg: Translator.translate(noDataMsg, locale)
