@@ -6,7 +6,7 @@ script_location='./src/framework/processing/py/port/script.py'
 single_platform='platforms = \[ ("'
 single_platform_commented_out='#platforms = \[ ("'
 
-platforms=("LinkedIn" "Instagram" "Chrome" "Facebook" "Youtube" "TikTok" "Twitter")
+platforms=("Port")
 
 for platform in "${platforms[@]}"; do
     sed -i "s/$single_platform_commented_out$platform/$single_platform$platform/g" $script_location
