@@ -21,6 +21,7 @@ import spinnerDark from '../../../../../assets/lottie/spinner-dark.json'
 import RechartsGraph from './figures/recharts_graph'
 import VisxWordcloud from './figures/visx_wordcloud'
 import { zoomInIcon, zoomOutIcon } from './zoom_icons'
+// import { Logger } from 'concurrently'
 
 const doubleTypes = ['wordcloud']
 type ShowStatus = 'hidden' | 'visible' | 'double'
@@ -51,6 +52,8 @@ export const Figure = ({
   useEffect(() => {
     if (status !== 'loading') {
       setLongLoading(false)
+
+      void longLoading
       return
     }
     const timer = setTimeout(() => {
@@ -91,8 +94,9 @@ export const Figure = ({
   if (status === 'error') {
     return <div className='flex justify-center items-center text-error'>{errorMsg}</div>
   }
-  let height = visualization.height || 250
-
+  let height = typeof visualization.height === 'number' && !isNaN(visualization.height)
+    ? visualization.height
+    : 250
   if (showStatus === 'double') height = height * 2
 
   return (

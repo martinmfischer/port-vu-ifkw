@@ -1,4 +1,4 @@
-import { extractUrlDomain, getTableColumn, rescaleToRange, tokenize } from './util'
+import { extractUrlDomain, getTableColumn, /* rescaleToRange, */ tokenize } from './util'
 import { PropsUITable, TableContext } from '../../../../../types/elements'
 import {
   TextVisualizationData,

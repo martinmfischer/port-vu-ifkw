@@ -36,7 +36,7 @@ FILTER_LINKS: bool = False ## Turns on/off filtering of links in chatlogs
 
 
 logger = logging.getLogger(__name__)
-
+url_pattern = r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+\.[a-z]{2,})(?:[^\s()<>]+|\([^\s()<>]+\))*)'
 
 
 DDP_CATEGORIES = [
@@ -157,36 +157,37 @@ def anonymize_chatlog(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-### THIS DOES NOT WORK YET, IT IS AI SLOP
 
-def filter_to_links(df: pd.DataFrame) -> pd.DataFrame:
-    if( not FILTER_LINKS) or df.empty:
-        return df
-    """
-    Filters the chatlog DataFrame to only include rows that contain links and their context (+- 5 rows)
-    This is useful for extracting URLs shared in the chat.
-    """
+def extract_links_with_context(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or 'message' not in df.columns:
-        return df
-    # Define a regex pattern to match URLs
-    url_pattern = r'(https?://[^\s]+)'
-    # Filter rows that contain URLs
-    mask = df['message'].str.contains(url_pattern, na=False)
-    filtered_df = df[mask].copy()
-    # For each row with a URL, get the context (5 rows before and after)
-    context_rows = []
-    for index in filtered_df.index:
-        start = max(0, index - 2)
-        end = min(len(df), index + 3)
-        context = df.iloc[start:end]
-        context_rows.append(context)
-    # Concatenate all context rows into a single DataFrame
-    if context_rows:
-        filtered_df = pd.concat(context_rows).drop_duplicates().reset_index(drop=True)
-    else:
-        filtered_df = pd.DataFrame(columns=df.columns)
+        return pd.DataFrame(columns=["link", "context", "message"])
 
-    return filtered_df
+    url_pattern = r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+\.[a-z]{2,})(?:[^\s()<>]+|\([^\s()<>]+\))*)'
+
+    # Zeilen mit Links finden
+    mask = df['message'].str.contains(url_pattern, na=False)
+    link_rows = df[mask]
+
+    results = []
+
+    for idx in link_rows.index:
+        message = df.loc[idx, 'message']
+        found_links = re.findall(url_pattern, message)
+
+        # Kontext definieren (±5 Nachrichten)
+        start = max(0, idx - 5)
+        end = min(len(df), idx + 6)  # +6, weil exklusiv
+
+        context_messages = df.iloc[start:end]['message'].tolist()
+
+        for link in found_links:
+            results.append({
+                "link": link,
+                "context": context_messages,
+                "message": message
+            })
+
+    return pd.DataFrame(results)
 
 def clean_chatlog(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -242,7 +243,7 @@ def chatlog_to_df(whatsapp_zip: str, chat_filename: str = None) -> pd.DataFrame:
                 logger.debug("whatstk failed to parse file %s: %s", chat_filename, e)
         out = clean_chatlog(out)
         out = anonymize_chatlog(out)
-        out = filter_to_links(out)
+        #out = filter_to_links(out)
         out = out.reset_index(drop=True)
     return out
 

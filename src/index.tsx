@@ -25,7 +25,8 @@ if (process.env.REACT_APP_BUILD !== 'standalone' && process.env.NODE_ENV === 'pr
 } else {
   // Setup local development mode
   console.log('Running with fake bridge')
-  const browserLang = navigator.language.split('-')[0] || 'en'
+  const [langPart] = navigator.language.split('-')
+  const browserLang = langPart !== '' ? langPart : 'en'
   run(new FakeBridge(), browserLang)
 }
 

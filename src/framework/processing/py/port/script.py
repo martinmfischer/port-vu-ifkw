@@ -268,6 +268,22 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
         table = props.PropsUIPromptConsentFormTable("whatsapp_chats", table_title, df, visualizations=vis)
         tables_to_render.append(table)
 
+    tbl = whatsapp.extract_links_with_context(df)
+    if not tbl.empty:
+        table_title = props.Translatable({"en": "WhatsApp links with context", "nl": "WhatsApp links met context", "de": "WhatsApp Links mit Kontext"})
+        vis = [
+            create_wordcloud(
+                "Meest voorkomende woorden in links",
+                "Most common words in links",
+                "Häufigste Wörter in Links",
+                "link",
+                tokenize=True,
+                extract="url_domain"
+            )
+        ]
+        table = props.PropsUIPromptConsentFormTable("whatsapp_links_with_context", table_title, tbl, visualizations=vis)
+        tables_to_render.append(table)
+
     return tables_to_render
 
 
