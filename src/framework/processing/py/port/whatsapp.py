@@ -9,6 +9,7 @@ import logging
 import zipfile
 import re
 import tempfile
+from urllib.parse import urlparse
 
 import pandas as pd
 
@@ -31,8 +32,6 @@ from port.validate import (
     DDPFiletype,
 )
 
-
-FILTER_LINKS: bool = False ## Turns on/off filtering of links in chatlogs
 
 
 logger = logging.getLogger(__name__)
@@ -158,6 +157,44 @@ def anonymize_chatlog(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
+def extract_links(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Extracts and normalizes links from the 'message' column of the DataFrame.
+    Strips 'www.' from domains and handles broken/IPv6 URLs gracefully.
+    """
+    if df.empty or 'message' not in df.columns:
+        return pd.DataFrame(columns=["link", "domain"])
+
+    url_pattern = r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+\.[a-z]{2,})(?:[^\s()<>]+|\([^\s()<>]+\))*)'
+
+    mask = df['message'].str.contains(url_pattern, na=False)
+    link_rows = df[mask]
+
+    results = []
+    for idx in link_rows.index:
+        message = df.loc[idx, 'message']
+        found_links = re.findall(url_pattern, message)
+
+        for link in found_links:
+            # Füge http:// hinzu, wenn kein Protokoll vorhanden
+            if not link.startswith(('http://', 'https://')):
+                link = 'http://' + link
+
+            try:
+                parsed = urlparse(link)
+                domain = parsed.netloc.lower()
+                if domain.startswith("www."):
+                    domain = domain[4:]
+                results.append({
+                    "link": link,
+                    "domain": domain
+                })
+            except ValueError as e:
+                logger.warning("Invalid URL skipped: %s (%s)", link, e)
+                continue
+
+    return pd.DataFrame(results)
+
 def extract_links_with_context(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or 'message' not in df.columns:
         return pd.DataFrame(columns=["link", "context", "message"])
@@ -169,7 +206,6 @@ def extract_links_with_context(df: pd.DataFrame) -> pd.DataFrame:
     link_rows = df[mask]
 
     results = []
-
     for idx in link_rows.index:
         message = df.loc[idx, 'message']
         found_links = re.findall(url_pattern, message)
@@ -179,6 +215,8 @@ def extract_links_with_context(df: pd.DataFrame) -> pd.DataFrame:
         end = min(len(df), idx + 6)  # +6, weil exklusiv
 
         context_messages = df.iloc[start:end]['message'].tolist()
+
+
 
         for link in found_links:
             results.append({

@@ -202,7 +202,6 @@ def extract_facebook(facebook_zip: str, _) -> list[props.PropsUIPromptConsentFor
     tables_to_render = []
     
 
-
     df = facebook.comments_to_df(facebook_zip)
     if not df.empty:
         table_title = props.Translatable({"en": "Facebook comments", "nl": "Facebook comments", "de": "Facebook Kommentare"})
@@ -248,6 +247,7 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
     # Convert all cells to strings:
     df = df.astype(str)
     if not df.empty:
+        """
         table_title = props.Translatable({"en": "WhatsApp chat messages", "nl": "WhatsApp chatberichten", "de": "WhatsApp Chatnachrichten"})
         vis = [
             create_wordcloud(
@@ -267,23 +267,41 @@ def extract_whatsapp(whatsapp_zip: str, _) -> list[props.PropsUIPromptConsentFor
         ]
         table = props.PropsUIPromptConsentFormTable("whatsapp_chats", table_title, df, visualizations=vis)
         tables_to_render.append(table)
+        """
+        tbl = whatsapp.extract_links(df)
+        if not tbl.empty:
+            table_title = props.Translatable({"en": "WhatsApp links", "nl": "WhatsApp links", "de": "WhatsApp Links"})
 
-    tbl = whatsapp.extract_links_with_context(df)
-    if not tbl.empty:
-        table_title = props.Translatable({"en": "WhatsApp links with context", "nl": "WhatsApp links met context", "de": "WhatsApp Links mit Kontext"})
-        vis = [
-            create_wordcloud(
-                "Meest voorkomende woorden in links",
-                "Most common words in links",
-                "Häufigste Wörter in Links",
-                "link",
-                tokenize=True,
-                extract="url_domain"
-            )
-        ]
-        table = props.PropsUIPromptConsentFormTable("whatsapp_links_with_context", table_title, tbl, visualizations=vis)
-        tables_to_render.append(table)
 
+
+
+            vis = [
+                create_wordcloud(
+                    "Meest voorkomende woorden in links",
+                    "Most common words in links",
+                    "Häufigste Wörter in Links",
+                    "link",
+                    tokenize=True,
+                    extract="url_domain"
+                )
+            ]
+            table = props.PropsUIPromptConsentFormTable("whatsapp_links_with_context", table_title, tbl, visualizations=vis)
+
+
+            tables_to_render.append(table)
+
+
+            
+            ### tbl contains the columns link and domain; create new dataframe named domain_tbl that contains the count for each domain in descending order, then only select the top 10 domains
+            domain_tbl = tbl['domain'].value_counts().reset_index()
+            domain_tbl.columns = ['domain', 'count']
+            domain_tbl = domain_tbl.sort_values(by='count', ascending=False)
+            table_title = props.Translatable({"en": "Top Domains", "nl": "Top Domains", "de": "Top Domains"})
+            vis = []
+            #LOGGER.debug("Domain table: %s", domain_tbl)
+            table = props.PropsUIPromptConsentFormTable("whatsapp_domains", table_title, domain_tbl, visualizations=vis)
+            tables_to_render.append(table)
+            
     return tables_to_render
 
 
