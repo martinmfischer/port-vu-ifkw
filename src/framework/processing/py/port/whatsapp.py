@@ -174,6 +174,7 @@ def extract_links(df: pd.DataFrame) -> pd.DataFrame:
     for idx in link_rows.index:
         message = df.loc[idx, 'message']
         found_links = re.findall(url_pattern, message)
+        date = df.loc[idx, 'date'] if 'date' in df.columns else None
 
         for link in found_links:
             # Füge http:// hinzu, wenn kein Protokoll vorhanden
@@ -186,6 +187,7 @@ def extract_links(df: pd.DataFrame) -> pd.DataFrame:
                 if domain.startswith("www."):
                     domain = domain[4:]
                 results.append({
+                    "date": date,
                     "link": link,
                     "domain": domain
                 })
@@ -283,5 +285,6 @@ def chatlog_to_df(whatsapp_zip: str, chat_filename: str = None) -> pd.DataFrame:
         out = anonymize_chatlog(out)
         #out = filter_to_links(out)
         out = out.reset_index(drop=True)
+        logger.debug("After cleaning, returning the following dataframe chatlog: %s", out.head())
     return out
 
