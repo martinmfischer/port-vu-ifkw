@@ -194,7 +194,7 @@ def validate(zfile: Path) -> ValidateInput:
                     paths.append(p.name)
 
         validation.infer_ddp_category(paths)
-        if validation.ddp_category.id is None:
+        if validation.ddp_category is None or validation.ddp_category.id is None:
             validation.set_status_code(1)
         else:
             validation.set_status_code(0)
