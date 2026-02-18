@@ -9,8 +9,8 @@ export default class Assembly {
   processingEngine: ProcessingEngine
   router: CommandRouter
 
-  constructor (worker: Worker, bridge: Bridge) {
-    const sessionId = String(Date.now())
+  constructor (worker: Worker, bridge: Bridge, releasePlatform: string = 'all') {
+    const sessionId = `${Date.now()}-${releasePlatform}`
     this.visualisationEngine = new ReactEngine(new ReactFactory())
     this.router = new CommandRouter(bridge, this.visualisationEngine)
     this.processingEngine = new WorkerProcessingEngine(sessionId, worker, this.router)

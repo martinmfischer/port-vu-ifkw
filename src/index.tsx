@@ -13,7 +13,13 @@ const worker = new Worker(workerFile)
 let assembly: Assembly
 
 const run = (bridge: Bridge, locale: string): void => {
-  assembly = new Assembly(worker, bridge)
+  // Extract platform from URL query params or environment variable
+  // URL params take precedence: ?platform=facebook
+  // Environment variable fallback: REACT_APP_RELEASE_PLATFORM (for npm scripts)
+  const params = new URLSearchParams(window.location.search)
+  const releasePlatform = params.get('platform') || process.env.REACT_APP_RELEASE_PLATFORM || 'all'
+  
+  assembly = new Assembly(worker, bridge, releasePlatform)
   assembly.visualisationEngine.start(rootElement, locale)
   assembly.processingEngine.start()
 }

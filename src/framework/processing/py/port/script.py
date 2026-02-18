@@ -1,6 +1,7 @@
 import logging
 import json
 import io
+import os
 from typing import Optional, Literal
 
 
@@ -33,14 +34,36 @@ def process(session_id):
     LOGGER.info("Starting the donation flow")
     yield donate_logs(f"{session_id}-tracking")
 
-    platforms = [ 
-        
+    # Get release platform from session ID (passed from frontend)
+    # Format: <timestamp>-<platform>
+    # Options: 'facebook', 'whatsapp', 'whatsapp:1', 'whatsapp:2', 'whatsapp:3', 'all'
+    session_parts = session_id.split('-')
+    release_platform = session_parts[-1].lower() if len(session_parts) > 1 else os.getenv("RELEASE_PLATFORM", "all").lower()
+    
+    all_platforms = [ 
         ("Facebook", extract_facebook, facebook.validate),
         ("Top WhatsApp-Chat 1", extract_whatsapp, whatsapp.validate), 
         ("Top WhatsApp-Chat 2", extract_whatsapp, whatsapp.validate), 
         ("Top WhatsApp-Chat 3", extract_whatsapp, whatsapp.validate), 
     ]
+    
+    # Filter platforms based on RELEASE_PLATFORM environment variable
+    if release_platform == "facebook":
+        platforms = [p for p in all_platforms if "Facebook" in p[0]]
+    elif release_platform == "whatsapp":
+        platforms = [p for p in all_platforms if "WhatsApp" in p[0]]
+    elif release_platform.startswith("whatsapp:"):
+        # Extract specific WhatsApp chat number (e.g., 'whatsapp:1' -> chat 1)
+        try:
+            chat_num = int(release_platform.split(":")[1])
+            platforms = [p for p in all_platforms if f"WhatsApp-Chat {chat_num}" in p[0]]
+        except (ValueError, IndexError):
+            LOGGER.warning("Invalid RELEASE_PLATFORM format '%s', using all platforms", release_platform)
+            platforms = all_platforms
+    else:  # 'all' or default
+        platforms = all_platforms
 
+    LOGGER.info("Release platform: %s", release_platform)
     LOGGER.info("Platforms to process: %s", platforms)
 
     # progress in %
