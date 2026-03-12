@@ -1,15 +1,39 @@
 #!/bin/bash
 
-# build release all individual platforms
+# Build release individual platform packages
+# Generates separate zip files for each WhatsApp chat, Facebook, and all combined
 
-script_location='./src/framework/processing/py/port/script.py'
-single_platform='platforms = \[ ("'
-single_platform_commented_out='#platforms = \[ ("'
+set -e
 
-platforms=("Port_Senior")
+echo "Building WhatsApp Chat 1 release package..."
+REACT_APP_RELEASE_PLATFORM=whatsapp:1 npm run build
+cd build && zip -r ../release-whatsapp-1.zip . && cd ..
+echo "✓ Created release-whatsapp-1.zip"
 
-for platform in "${platforms[@]}"; do
-    sed -i "s/$single_platform_commented_out$platform/$single_platform$platform/g" $script_location
-    PLATFORM=$platform npm run release_platform
-    git restore $script_location
-done
+echo ""
+echo "Building WhatsApp Chat 2 release package..."
+REACT_APP_RELEASE_PLATFORM=whatsapp:2 npm run build
+cd build && zip -r ../release-whatsapp-2.zip . && cd ..
+echo "✓ Created release-whatsapp-2.zip"
+
+echo ""
+echo "Building WhatsApp Chat 3 release package..."
+REACT_APP_RELEASE_PLATFORM=whatsapp:3 npm run build
+cd build && zip -r ../release-whatsapp-3.zip . && cd ..
+echo "✓ Created release-whatsapp-3.zip"
+
+echo ""
+echo "Building Facebook release package..."
+REACT_APP_RELEASE_PLATFORM=facebook npm run build
+cd build && zip -r ../release-facebook.zip . && cd ..
+echo "✓ Created release-facebook.zip"
+
+echo ""
+echo "Building complete release package (all platforms)..."
+REACT_APP_RELEASE_PLATFORM=all npm run build
+cd build && zip -r ../release-all.zip . && cd ..
+echo "✓ Created release-all.zip"
+
+echo ""
+echo "Release packages created successfully:"
+ls -lh release-*.zip
